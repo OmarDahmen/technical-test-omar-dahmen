@@ -12,6 +12,7 @@ import api from "../../services/api";
 
 import ProgressBar from "../../components/ProgressBar";
 import SelectMonth from "./../../components/selectMonth";
+import toast from "react-hot-toast";
 
 ChartJS.register(...registerables);
 
@@ -60,7 +61,6 @@ export default function ProjectView() {
 }
 
 const ProjectDetails = ({ project }) => {
-  console.log(project);
   return (
     <div>
       <div className="flex flex-wrap p-3">
@@ -85,8 +85,11 @@ const ProjectDetails = ({ project }) => {
                 </div>
                 <div className="mt-2 mr-2">
                   <span className="text-[18px] font-semibold text-[#000000]">Budget consummed {project.paymentCycle === "MONTHLY" && "this month"}:</span>
-
                   <Budget project={project} />
+                </div>
+                <div className="mt-2 mr-2">
+                  <span className="text-[18px] font-semibold text-[#000000]">Taches :</span>
+                  <TasksView projectId={project._id} />
                 </div>
               </div>
             </div>
@@ -287,5 +290,74 @@ const Links = ({ project }) => {
         </div>
       ))}
     </div>
+  );
+};
+
+const TasksView = ({ projectId }) => {
+  const [tasks, setTasks] = useState([]);
+  const [title, setTitle] = useState("");
+  const [status, setStatus] = useState("todo");
+  const [taskAdded, setTaskAdded] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+
+    (async () => {
+      setTaskAdded(false);
+      const { data } = await api.get(`/task/${encodeURIComponent(projectId)}`);
+      console.log("tasks :", data);
+      setTasks(data);
+    })();
+  }, [projectId, taskAdded]);
+
+  const handleAddTask = async (task) => {
+    task = {
+      title,
+      status,
+      projectId,
+    };
+    console.log("task : ", task);
+    const res = await api.post(`/task`, task);
+    if (!res.ok) throw res;
+    setTaskAdded(true);
+    toast.success("Created!");
+    setTitle("");
+  };
+
+  if (!projectId) return <Loader />;
+
+  return (
+    <>
+      <div className="flex">
+        <input type="text" className="border" value={title} onInput={(e) => setTitle(e.target.value)}></input>
+        <select
+          className="w-[180px] bg-[#FFFFFF] text-[14px] text-[#212325] font-normal py-2 px-[14px] rounded-[10px] border-r-[16px] border-[transparent] cursor-pointer"
+          onChange={(e) => setStatus(e.target.value)}>
+          <option disabled>Status</option>
+          <option value={""}>All status</option>
+          {[
+            { value: "todo", label: "ToDo" },
+            { value: "doing", label: "Doing" },
+            { value: "done", label: "Done" },
+          ].map((e) => {
+            return (
+              <option key={e.value} value={e.value} label={e.label}>
+                {e.label}
+              </option>
+            );
+          })}
+        </select>
+        <button onClick={handleAddTask}>Ajouter</button>
+      </div>
+      <ul>
+        {tasks?.map((task) => (
+          <li key={task._id} className={task.status === "done" ? "line-through text-[#676D7C]" : ""}>
+            {task.title}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 };
